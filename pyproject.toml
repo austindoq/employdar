@@ -1,0 +1,21 @@
+[project]
+name = "employdar"
+version = "0.1.0"
+description = "MCP Server to help with job search"
+readme = "README.md"
+authors = [
+    { name = "Austin", email = "austindoq@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "mcp[cli]>=2.0.0",
+    "motor>=3.7.1",
+    "python-dotenv>=1.2.3",
+]
+
+[project.scripts]
+employdar = "employdar:main"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
