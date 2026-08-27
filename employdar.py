@@ -3,6 +3,7 @@ from mcp.server import MCPServer
 from dotenv import load_dotenv
 from datetime import datetime, UTC
 from zoneinfo import ZoneInfo
+from bson import ObjectId
 
 #LOGGING CONFIG
 logging.basicConfig(level=logging.INFO)
@@ -20,21 +21,29 @@ mcp = MCPServer("Employdar")
 
 #FORMAT HELPER FUNCTION
 def format_job(job: dict) -> str:
+  """Format each job document for MCP Host readability."""
   return f"""
   Job Title: {job["job_title"]}
   Company: {job["company"]}
   Description: {job["description"]}
   Location: {job["location"]}
   URL: {job["url"]}
+  Status: {job["status"]}
   Added On: {job["created_at"].astimezone(ZoneInfo("America/Vancouver"))}
+  Job ID: {str(job["_id"])}
 """
 
 # GET ALL JOBS WITHIN THE JOBS COLLECTION
 @mcp.tool()
 async def get_all_jobs() -> str:
   """Return all jobs applied to as a list."""
-  cursor = db.jobs.find()
-  result = await cursor.to_list(length=200)
+
+  try:
+    cursor = db.jobs.find()
+    result = await cursor.to_list(length=200)
+  except Exception as error:
+    logging.error(f"There was an error pulling job data: {error}")
+    return f"There was an error getting all jobs: {error}"
 
   if not result:
     return f"No jobs in database to return yet."
@@ -56,7 +65,7 @@ async def add_job(job_title: str, company: str, description: str, location: str,
     url: The URL of the job posting.
   """
   try:
-    await db.jobs.insert_one({"job_title": job_title, "company": company, "description": description, "location": location, "url": url, "created_at": datetime.now(UTC)})
+    await db.jobs.insert_one({"job_title": job_title, "company": company, "description": description, "location": location, "url": url, "status": "applied", "created_at": datetime.now(UTC)})
     return f"Successfully saved {job_title} at {company}"
   except Exception as error:
     logging.error(f"There was an error saving the job to the job database: {error}")
@@ -81,7 +90,8 @@ async def search_jobs_by_keyword(keyword: str) -> str:
       {"job_title": {"$regex": keyword, "$options": "i"}},
       {"company": {"$regex": keyword, "$options": "i"}},
       {"description": {"$regex": keyword, "$options": "i"}},
-      {"location": {"$regex": keyword, "$options": "i"}}
+      {"location": {"$regex": keyword, "$options": "i"}},
+      {"status": {"$regex": keyword, "$options": "i"}}
     ]
   }
 
@@ -97,6 +107,25 @@ async def search_jobs_by_keyword(keyword: str) -> str:
   except Exception as error:
     logging.error(f"There was an error finding job postings that match your search: {error}")
     return f"There was an error finding job postings that match your search: {error}"
+
+#UPDATE AN APPLIED JOB'S APPLICATION STATUS 
+@mcp.tool()
+async def update_application_status(job_id: str, new_status: str) -> str:
+  """
+  Update the application status of a job in the database.
+
+  Args:
+    job_id: A job's ID that matches that specific job's MongoDB document _id.
+    new_status: The new application status to update the 'status' field in the specific document.
+  """
+  #Must turn string of job_id into MongoDB ObjectID to return a match
+  try:
+    await db.jobs.update_one({"_id": ObjectId(job_id)}, {"$set": {"status": new_status}})
+    return f"Application status updated successfully."
+  except Exception as error:
+    logging.info(f"There was an error updating the status of this application: {error}")
+    return f"There was an error updating the status of this application: {error}"
+
 
 if __name__ == "__main__":
   mcp.run(transport="stdio")
