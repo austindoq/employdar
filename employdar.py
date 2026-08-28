@@ -1,7 +1,7 @@
 import asyncio, os, re, logging, pymongo
 from mcp.server import MCPServer
 from dotenv import load_dotenv
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
 from zoneinfo import ZoneInfo
 from bson import ObjectId
 
@@ -125,6 +125,50 @@ async def update_application_status(job_id: str, new_status: str) -> str:
   except Exception as error:
     logging.info(f"There was an error updating the status of this application: {error}")
     return f"There was an error updating the status of this application: {error}"
+
+#RETURN AGGREGATE JOB APPLICATION STATUS WITHIN TIMEFRAME
+@mcp.tool()
+async def return_application_statuses_by_timeframe(timeframe: str) -> str:
+  """
+  Return an aggregate count of jobs applied to grouped by application status based on timeframe.
+
+  Arg: 
+    timeframe: MUST be one of these keywords - "week", "month", or "year"
+  """
+
+  #Create cutoff to filter by
+  if timeframe == "week":
+    cutoff = datetime.now(UTC) - timedelta(days=7)
+  elif timeframe == "month":
+    cutoff = datetime.now(UTC) - timedelta(days=30)
+  elif timeframe == "year":
+    cutoff = datetime.now(UTC) - timedelta(days=365)
+  else:
+    return "Timeframe must be 'week', 'month', or 'year'."
+
+  #Define the filter pipeline
+  pipeline = [
+    {"$match": {"created_at": {"$gte": cutoff}}},
+    {"$group": {"_id": "$status", "count": {"$sum": 1}}}
+  ]
+  try:
+    cursor = await db.jobs.aggregate(pipeline)
+    result = await cursor.to_list(length=None)
+  except Exception as error:
+    logging.info(f"There was an error getting aggregate data: {error}")
+    return f"There was an error getting aggregate data: {error}"
+
+  buckets = []
+
+  #Format data for return readability
+  if not result:
+    return "No groups within this timeframe."
+  else: 
+    for bucket in result:
+      group = f"""\nStatus: {bucket["_id"]}\nCount: {bucket["count"]}
+              """
+      buckets.append(group)
+    return "---".join(buckets)
 
 
 if __name__ == "__main__":
