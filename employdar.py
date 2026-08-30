@@ -116,12 +116,12 @@ async def update_application_status(job_id: str, new_status: str) -> str:
 
   Args:
     job_id: A job's ID that matches that specific job's MongoDB document _id.
-    new_status: The new application status to update the 'status' field in the specific document.
+    new_status: The new application status to update the 'status' field in the specific job posting's document.
   """
   #Must turn string of job_id into MongoDB ObjectID to return a match
   try:
-    await db.jobs.update_one({"_id": ObjectId(job_id)}, {"$set": {"status": new_status}})
-    return f"Application status updated successfully."
+    await db.jobs.update_one({"_id": ObjectId(job_id)}, {"$set": {"status": new_status.lower()}})
+    return f"Application status updated to {new_status.lower()} successfully."
   except Exception as error:
     logging.info(f"There was an error updating the status of this application: {error}")
     return f"There was an error updating the status of this application: {error}"
