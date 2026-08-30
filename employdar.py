@@ -1,5 +1,6 @@
 import asyncio, os, re, logging, pymongo
 from mcp.server import MCPServer
+from mcp.types import ToolAnnotations
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, UTC
 from zoneinfo import ZoneInfo
@@ -34,7 +35,7 @@ def format_job(job: dict) -> str:
 """
 
 # GET ALL JOBS WITHIN THE JOBS COLLECTION
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
 async def get_all_jobs() -> str:
   """Return all jobs applied to as a list."""
 
@@ -52,7 +53,7 @@ async def get_all_jobs() -> str:
     return "\n---\n".join(jobs)
 
 # ADD A JOB TO THE DATABASE 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=False))
 async def add_job(job_title: str, company: str, description: str, location: str, url: str) -> str:
   """
   Add a single job to the database.
@@ -72,7 +73,7 @@ async def add_job(job_title: str, company: str, description: str, location: str,
     return f"There was an error saving this job to the job database: {error}"
 
 #SEARCH JOBS COLLECTION BY A KEYWORD
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
 async def search_jobs_by_keyword(keyword: str) -> str:
   """
   Search the jobs collection by keyword.
@@ -109,7 +110,7 @@ async def search_jobs_by_keyword(keyword: str) -> str:
     return f"There was an error finding job postings that match your search: {error}"
 
 #UPDATE AN APPLIED JOB'S APPLICATION STATUS 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=False))
 async def update_application_status(job_id: str, new_status: str) -> str:
   """
   Update the application status of a job in the database.
@@ -127,7 +128,7 @@ async def update_application_status(job_id: str, new_status: str) -> str:
     return f"There was an error updating the status of this application: {error}"
 
 #RETURN AGGREGATE JOB APPLICATION STATUS WITHIN TIMEFRAME
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
 async def return_application_statuses_by_timeframe(timeframe: str) -> str:
   """
   Return an aggregate count of jobs applied to grouped by application status based on timeframe.
